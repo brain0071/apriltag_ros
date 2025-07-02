@@ -44,6 +44,20 @@ find_package(Threads REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core calib3d)
 find_package(apriltag 3.2 REQUIRED)
 
+
+#naodai
+find_package(rosidl_default_generators REQUIRED)
+# naodai
+find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+
+# naodai
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/AprilTagDetectionWithPose.msg"
+  "msg/AprilTagDetectionWithPoseArray.msg"
+  DEPENDENCIES geometry_msgs std_msgs 
+)
+
 if(cv_bridge_VERSION VERSION_GREATER_EQUAL 3.3.0)
     add_compile_definitions(cv_bridge_HPP)
 endif()
@@ -116,6 +130,12 @@ target_link_libraries(AprilTagNode
     tags
     pose_estimation
 )
+
+# naodai
+rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
+target_link_libraries(AprilTagNode ${cpp_typesupport_target})
+
+
 rclcpp_components_register_node(AprilTagNode
     PLUGIN "AprilTagNode"
     EXECUTABLE "apriltag_node"
@@ -148,5 +168,8 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
+
+#naodai
+ament_export_dependencies(rosidl_default_runtime)
 
 ament_package()

@@ -31,5 +31,15 @@ def generate_launch_description():
                 ('camera_info', '/zed/zed_node/left_raw_gray/camera_info'),
             ],
             parameters=[param_file],
+        ),
+        
+        # apriltags odometry
+        Node(
+            package='tank_odometry',
+            executable='odometry_node',
+            name='odometry_node',
+            output='screen',
         )
+
+
     ])
