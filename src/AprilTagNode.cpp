@@ -4,9 +4,9 @@
 #include <apriltag_msgs/msg/april_tag_detection_array.hpp>
 
 // naodai
-#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "apriltag_ros/msg/april_tag_detection_with_pose.hpp"
 #include "apriltag_ros/msg/april_tag_detection_with_pose_array.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 
 
 #ifdef cv_bridge_HPP
@@ -25,7 +25,7 @@
 // apriltag
 #include "tag_functions.hpp"
 #include <apriltag.h>
-
+#include "tag36h10.h" 
 #include <iostream>
 
 
@@ -112,6 +112,8 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     sub_cam(image_transport::create_camera_subscription(
         this,
         this->get_node_topics_interface()->resolve_topic_name("image_rect"),
+        // naodai:
+        // this->get_node_topics_interface()->resolve_topic_name("/camera1/image_raw"),
         std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2),
         declare_parameter("image_transport", "raw", descr({}, true)),
         rmw_qos_profile_sensor_data)),
@@ -120,7 +122,9 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     tf_broadcaster(this)
 {
     // read-only parameters
-    const std::string tag_family = declare_parameter("family", "36h11", descr("tag family", true));
+    // const std::string tag_family = declare_parameter("family", "36h11", descr("tag family", true));
+    // naodai:
+    const std::string tag_family = declare_parameter("family", "36h10", descr("tag family", true));
     tag_edge_size = declare_parameter("size", 1.0, descr("default tag size", true));
 
     // get tag names, IDs and sizes
@@ -157,7 +161,15 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         for(size_t i = 0; i < ids.size(); i++) { tag_sizes[ids[i]] = sizes[i]; }
     }
 
-    if(tag_fun.count(tag_family)) {
+    // naodai:
+    if(tag_family == "36h10") {
+        tf = tag36h10_create();
+        // naodai:
+        RCLCPP_INFO(this->get_logger(), "create 36h10 detector");
+        tf_destructor = tag36h10_destroy;
+        apriltag_detector_add_family(td, tf);
+    }
+    else if(tag_fun.count(tag_family)) {
         tf = tag_fun.at(tag_family).first();
         tf_destructor = tag_fun.at(tag_family).second;
         apriltag_detector_add_family(td, tf);
@@ -165,6 +177,16 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     else {
         throw std::runtime_error("Unsupported tag family: " + tag_family);
     }
+
+    // naodai:
+    // if(tag_fun.count(tag_family)) {
+    //     tf = tag_fun.at(tag_family).first();
+    //     tf_destructor = tag_fun.at(tag_family).second;
+    //     apriltag_detector_add_family(td, tf);
+    // }
+    // else {
+    //     throw std::runtime_error("Unsupported tag family: " + tag_family);
+    // }
 }
 
 AprilTagNode::~AprilTagNode()
@@ -182,6 +204,10 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     // convert to 8bit monochrome image
     const cv::Mat img_uint8 = cv_bridge::toCvShare(msg_img, "mono8")->image;
 
+    // naodai:
+    RCLCPP_INFO(this->get_logger(), "Image size = %d x %d", img_uint8.cols, img_uint8.rows);
+
+
     image_u8_t im{img_uint8.cols, img_uint8.rows, img_uint8.cols, img_uint8.data};
 
     // detect tags
@@ -195,12 +221,14 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     apriltag_msgs::msg::AprilTagDetectionArray msg_detections;
     msg_detections.header = msg_img->header;
     std::vector<geometry_msgs::msg::TransformStamped> tfs;
-    
+
     // naodai:
     apriltag_ros::msg::AprilTagDetectionWithPoseArray apriltags_array;
     apriltags_array.header.stamp = this->get_clock()->now();
     apriltags_array.header.frame_id = "camera_frame";
     apriltags_array.num = zarray_size(detections);
+    // naodai:
+    RCLCPP_INFO(this->get_logger(), "Detected %d apriltags", apriltags_array.num);
     
     for(int i = 0; i < zarray_size(detections); i++) {
         apriltag_detection_t* det;
@@ -235,7 +263,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         // set child frame name by generic tag name or configured tag name
         tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name) + ":" + std::to_string(det->id);
         const double size = tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size;
-        
+
         if(estimate_pose != nullptr) {
             tf.transform = estimate_pose(det, intrinsics, size);
             apriltag_ros::msg::AprilTagDetectionWithPose apriltag_pose;
@@ -248,13 +276,13 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
             apriltag_pose.pose.pose.orientation.x = tf.transform.rotation.x;
             apriltag_pose.pose.pose.orientation.y = tf.transform.rotation.y;
             apriltag_pose.pose.pose.orientation.z = tf.transform.rotation.z;
-            // 
+            //
             apriltags_array.detections.push_back(apriltag_pose);
         }
-        
+
         tfs.push_back(tf);
     }
-    
+
     // naodai
     pub_apriltags->publish(apriltags_array);
     pub_detections->publish(msg_detections);
