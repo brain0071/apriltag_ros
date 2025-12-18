@@ -7,18 +7,29 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
 
-    # zed_wrapper_dir = get_package_share_directory('zed_wrapper')
+    
     apriltag_ros_dir = get_package_share_directory('apriltag_ros')
     param_file = os.path.join(apriltag_ros_dir, 'cfg', 'tags_36h10.yaml')
-    # zed_launch_file = os.path.join(zed_wrapper_dir, 'launch', 'zed_camera.launch.py')
+    cam_yaml_path = '/home/naodai/Workspace/camera_usb_ws/src/apriltag_ros/cfg/camera_info.yaml'
+    cam_info_url = 'file://' + cam_yaml_path  
 
     return LaunchDescription([
         
-        # zed2i
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(zed_launch_file),
-        #     launch_arguments={'camera_model': 'zed2i'}.items()
-        # ),
+       Node(
+            package='usb_cam',
+            executable='usb_cam_node_exe',
+            name='usb_cam',
+            namespace='camera1',
+            output='screen',
+            parameters=[{
+                'camera_name': 'camera1',
+                'video_device': '/dev/video0',
+                'image_width': 640,
+                'image_height': 480,
+                'framerate': 30.0,
+                'camera_info_url': cam_info_url,
+            }],
+        ),
         
         # apriltags
         Node(
@@ -34,12 +45,11 @@ def generate_launch_description():
         ),
         
         # apriltags odometry
-        # Node(
-        #     package='tank_odometry',
-        #     executable='odometry_node',
-        #     name='odometry_node',
-        #     output='screen',
-        # )
-
+        Node(
+            package='tank_odometry',
+            executable='odometry_node',
+            name='odometry_node',
+            output='screen',
+        )
 
     ])

@@ -205,7 +205,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     const cv::Mat img_uint8 = cv_bridge::toCvShare(msg_img, "mono8")->image;
 
     // naodai:
-    RCLCPP_INFO(this->get_logger(), "Image size = %d x %d", img_uint8.cols, img_uint8.rows);
+    // RCLCPP_INFO(this->get_logger(), "Image size = %d x %d", img_uint8.cols, img_uint8.rows);
 
 
     image_u8_t im{img_uint8.cols, img_uint8.rows, img_uint8.cols, img_uint8.data};
@@ -228,16 +228,16 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     apriltags_array.header.frame_id = "camera_frame";
     apriltags_array.num = zarray_size(detections);
     // naodai:
-    RCLCPP_INFO(this->get_logger(), "Detected %d apriltags", apriltags_array.num);
+    // RCLCPP_INFO(this->get_logger(), "Detected %d apriltags", apriltags_array.num);
     
     for(int i = 0; i < zarray_size(detections); i++) {
         apriltag_detection_t* det;
         zarray_get(detections, i, &det);
 
-        RCLCPP_DEBUG(get_logger(),
-                     "detection %3d: id (%2dx%2d)-%-4d, hamming %d, margin %8.3f\n",
-                     i, det->family->nbits, det->family->h, det->id,
-                     det->hamming, det->decision_margin);
+        // RCLCPP_DEBUG(get_logger(),
+        //              "detection %3d: id (%2dx%2d)-%-4d, hamming %d, margin %8.3f\n",
+        //              i, det->family->nbits, det->family->h, det->id,
+        //              det->hamming, det->decision_margin);
 
         // ignore untracked tags
         if(!tag_frames.empty() && !tag_frames.count(det->id)) { continue; }
